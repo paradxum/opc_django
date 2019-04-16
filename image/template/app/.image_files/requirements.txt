@@ -1,0 +1,12 @@
+Django>=1.8,<2.0
+psycopg2-binary
+gunicorn>=19.9,<20.0
+django-redis-cache
+hiredis
+# Makes debugging much easier ... 
+django-extensions
+Werkzeug	# !BUILD-STRIP
+django-debug-toolbar	# !BUILD-STRIP
+# Used for testing
+coverage	# !BUILD-STRIP
+pylint		# !BUILD-STRIP

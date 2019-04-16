@@ -1,0 +1,100 @@
+#!/bin/bash
+
+#########################################################
+#   Opiniated Django Project creator script
+#	by Eric Schultz <eric.schultz@cyvon.com>
+#########################################################
+# This script creates a Django project with a bunch of
+#  additional "stuff" to make it much easier to work on
+#  and eventually get to a production type environment.
+# This is not meant to be a FINAL configuration for you,
+#  but rather a consistant starting point so you don't
+#  always spend half a day getting projects set up
+#########################################################
+# The main things it does are:
+#  - Create the Django Project
+#  - Create a superuser of admin/admin in django
+#  - Create docker images for:
+#	- Main Django App (gunicorn)
+#	- Postgres Database
+#	- Nginx to serve media/static files
+#  - Create a docker-compose file for local dev/testing
+#  - Load up django-extensions and debugger
+#  - Copy in some quick access scripts so you don't
+#	have to remeber how to start everything up
+#  - Add in the basic gitlab project stuff
+#  - Setup basic continuous integration through gitlab-ci
+#  - Create your gitlab project and do an inital upload
+#  - Create a basic helm chart for running on kube
+#########################################################
+# Props to those that came before me
+# gitlab-semantic-versioning
+#  https://github.com/mrooding/gitlab-semantic-versioning
+# Dockerizing Django/Postgres/Gunicorn/Nginx
+#  https://testdriven.io/blog/dockerizing-django-with-postgres-gunicorn-and-nginx/
+# Dockerized Django CI testing
+#  https://peakwinter.net/blog/modern-devops-django/
+# Gitlab CI - Helm - Deploy
+#  https://about.gitlab.com/2017/09/21/how-to-create-ci-cd-pipeline-with-autodeploy-to-kubernetes-using-gitlab-and-helm/
+# Redis Caching
+#  http://michal.karzynski.pl/blog/2013/07/14/using-redis-as-django-session-store-and-cache-backend/
+#########################################################
+
+if [ "X$1" == "X" ] ; then
+	echo "Usage: $0 <project name> <appname>"
+	exit 1
+	fi
+if [ "X$2" == "X" ] ; then
+	echo "Usage: $0 <project name> <appname>"
+	exit 1
+	fi
+
+pname=$1
+appname=$2
+
+export CREATE_HELM_CHART=1
+
+export CREATE_GITLAB_PROJECT=1
+export GITLAB_STORE_CREDS=1
+export GITLAB_HOST="https://my_gitlab.host.com"
+export GITLAB_USER="my.gitlab.username"
+export GITLAB_API_TOKEN="gitlab_api_token"
+
+# TODO
+export DJANO_VER=2	# 1 or 2 for latest of that version, point release for specific ver
+# Note: For the docker images below, we use the -alpine version automatically
+export PYTHON_VER=3.7		
+export POSTGRES_VER=10.5
+export NGINX_VER=1.15.0
+export REDIS_VER=5.0
+
+
+#export BUILDER_IMAGE=opc_django:dev	# For local work on builder
+export BUILDER_IMAGE=ericschultz/opc_django:latest	# For local work on builder
+
+
+mkdir $pname
+cwd=`pwd`
+echo "Creating"
+docker run --privileged \
+	-v "$cwd/$pname":"/dest/$pname" \
+	-v "`realpath ~`/.gitconfig":"/root/.gitconfig" \
+	-v "`realpath ~`/.git-credentials":"/root/.git-credentials" \
+	-e ID_UID=`id -u` -e ID_GID=`id -g` \
+	-e CREATE_HELM_CHART -e CREATE_GITLAB_PROJECT -e GITLAB_STORE_CREDS -e GITLAB_HOST -e GITLAB_USER -e GITLAB_API_TOKEN -e PYTHON_VER -e POSTGRES_VER -e NGINX_VER -e REDIS_VER \
+	opc_django:dev $1 $2 >$pname.create.log 2>&1
+
+
+# All Done, Print a nice message
+cat <<__DONE__
+
+  Created $pname
+  Created $pname/app/$appname
+
+  Full Stack Startup: cd $pname; docker-compose up -d
+  Debug Startup: cd $pname; ./devup
+
+  Access via: http://localhost:8000
+  Local Superuser: admin/admin
+
+__DONE__

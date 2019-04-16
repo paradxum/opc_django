@@ -1,0 +1,16 @@
+#!/bin/sh
+
+
+
+dockerd >/dev/null 2>/dev/null &
+sleep 1
+
+DOCKER_GID=$(stat -c '%g' /var/run/docker.sock)
+groupadd -g $ID_GID -r tmpuser
+useradd -u $ID_UID -r -g tmpuser -G root tmpuser
+
+mkdir /root/.docker
+echo "{}" >/root/.docker/config.json
+chmod a+rwx -R /root 
+
+chpst -u :$ID_UID:0 /script/opc_create $@

@@ -1,0 +1,165 @@
+#!/bin/sh
+
+for i in helm docker sed; do 
+	if !  which $i >/dev/null ; then
+		echo "Error: $i missing"
+		exit 1
+	fi
+done
+
+if [ "X$1" = "X" ] ; then
+	echo "Usage: $0 <Project Name> <App Name>"
+	exit 1
+fi       
+pname=$1
+
+if [ "X$2" = "X" ] ; then
+	echo "Usage: $0 <Project Name> <App Name>"
+	exit 1
+fi       
+appname=$2
+
+CREATE_HELM_CHART=${CREATE_HELM_CHART:-1}
+
+CREATE_GITLAB_PROJECT=${CREATE_GITLAB_PROJECT:-1}
+GITLAB_STORE_CREDS=${GITLAB_STORE_CREDS:-1}
+GITLAB_HOST=${GITLAB_HOST:-""}
+GITLAB_USER=${GITLAB_USER:-""}
+GITLAB_API_TOKEN=${GITLAB_API_TOKEN:-""}
+
+#TODO
+DJANGO_VER=${DJANGO_VER:-2}
+PYTHON_VER=${PYTHON_VER:-3.7}
+POSTGRES_VER=${POSTGRES_VER:-10.5}
+NGINX_VER=${NGINX_VER:-1.15.0}
+REDIS_VER=${REDIS_VER:-5.0}
+
+# Calculate our gravatar url
+GSUM=`echo $pname| md5sum|cut -d " " -f 1`
+GURL="https://www.gravatar.com/avatar/$GSUM.png?d=robohash"
+
+# Calculate our Secret
+secret=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 54 | head -n 1)
+
+# Make the inital copy of our project
+cp -dR /script/template/. /dest/$pname/
+
+# Do all our Global Replacements
+cd /dest/$pname
+# Project Name
+find . -type f -exec sed -i "s#\\\$\\\$PROJECT_NAME\\\$\\\$#$pname#g" {} \;
+# Secret Key
+find . -type f -exec sed -i "s#\\\$\\\$SECRET_KEY\\\$\\\$#$secret#g" {} \;
+
+# Create our django app
+docker-compose build ${pname}-app
+docker-compose run --no-deps ${pname}-app django-admin.py startproject $pname .
+docker-compose stop
+
+# Add a favicon to the Django project
+cd /dest/$pname/app/$pname
+mkdir static
+wget -O static/icon.png "$GURL"
+convert static/icon.png static/favicon.ico
+
+# Replace/setup our settings file
+cd /dest/$pname/app/$pname
+	# Secret key
+sed -i "s/SECRET_KEY =.*/SECRET_KEY = os.getenv('SECRET_KEY', 'NOTaSecret')/" settings.py
+	# DB Settings
+sed -i "s/'ENGINE':.*/'ENGINE': os.getenv('SQL_ENGINE', 'django.db.backends.sqlite3'),/" settings.py
+sed -i "s/'NAME': os.path.join(BASE_DIR, 'db.sqlite3'.*/'NAME': os.getenv('SQL_DATABASE', os.path.join(BASE_DIR, 'db.sqlite3')),\n        'USER': os.getenv('SQL_USER', 'user'),\n        'PASSWORD': os.getenv('SQL_PASSWORD', 'password'),\n        'HOST': os.getenv('SQL_HOST', 'localhost'),\n        'PORT': os.getenv('SQL_PORT', '5432'),/" settings.py
+	# Statics and Media
+sed -i "s/STATIC_URL =.*/STATIC_URL = '\\/staticfiles\\/'/" settings.py
+sed -i "s/ALLOWED_HOSTS =.*/ALLOWED_HOSTS = [\'*\']/" settings.py
+	# Enable DEBUG environment variable
+sed -i "s/DEBUG = .*/DEBUG = os.getenv('DEBUG', False)/" settings.py
+	# Enable debug_toolbar app and caches
+sed -i "s/INSTALLED_APPS = .*/INSTALLED_APPS = [\n    'debug_toolbar',  # !BUILD-STRIP/" settings.py
+sed -i "s/MIDDLEWARE = .*/MIDDLEWARE = [\n    'django.middleware.cache.UpdateCacheMiddleware',\n    'debug_toolbar.middleware.DebugToolbarMiddleware',  # !BUILD-STRIP/" settings.py
+sed -i "s/XFrameOptionsMiddleware.*/XFrameOptionsMiddleware',\n    'django.middleware.cache.FetchFromCacheMiddleware',/" settings.py
+
+cat >>settings.py <<__EXTRA_SETTINGS__
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+MEDIA_URL = '/mediafiles/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'mediafiles')
+
+# Used by django-debug-toolbar
+DEBUG_TOOLBAR_CONFIG = {"SHOW_TOOLBAR_CALLBACK": lambda x: True, }  # !BUILD-STRIP
+
+# Used for Django Redis Cache
+SESSION_ENGINE = 'django.contrib.sessions.backends.cache'       # Sessions in redis only, Sessions lost on redis down
+# SESSION_ENGINE = 'django.contrib.sessions.backends.cached_db'  # Sessions in DB, cached by redis
+CACHES = {
+    "default": {
+        "BACKEND": "redis_cache.RedisCache",
+        "LOCATION": os.getenv('REDIS_CONNSTR', 'redis://redis:6379/1'),
+        "OPTIONS": {
+            'PARSER_CLASS': 'redis.connection.HiredisParser',
+        },
+        "KEY_PREFIX": "testp10_"
+    }
+}
+__EXTRA_SETTINGS__
+
+	# Url mappings for django toolbar
+sed -i "s/import admin.*/import admin\nfrom django.conf.urls import include    # !BUILD-STRIP\nimport debug_toolbar    # !BUILD-STRIP/" urls.py
+cat >>urls.py <<__EXTRA_URLS__
+
+urlpatterns.append(url(r'^__debug__/', include(debug_toolbar.urls)))   # !BUILD-STRIP
+__EXTRA_URLS__
+
+# Enable the Entrypoint file that will run the migrations
+cd /dest/$pname/app
+sed -i "s/#ENTRYPOINT/ENTRYPOINT/" Dockerfile
+
+# Spin up the 2 containers so we can run the migrations
+docker-compose up -d --build db
+docker-compose run --no-deps ${pname}-app python3.7 manage.py migrate --noinput
+
+# Create our app
+docker-compose run --no-deps ${pname}-app python3.7 manage.py startapp $appname
+sed -i "s/INSTALLED_APPS = \[/INSTALLED_APPS = \[\n    '$appname',\n    'django_extensions',/" /dest/$pname/app/$pname/settings.py
+
+# Just incase we missed something (line nginx)
+docker-compose stop
+docker-compose build
+
+# Rejigger the helm chart
+if [ $CREATE_HELM_CHART = 1 ]; then
+	cd /dest/$pname/charts
+	mv CHART_TEMPLATE $pname
+	mv SAMPLE-PROJECT-master.yaml SAMPLE-${pname}-master.yaml
+	echo "icon: $GURL">> $pname/Chart.yaml
+else
+	cd /dest/$pname
+	rm -Rf charts
+fi
+
+# Create the gitlab project files
+if [ $CREATE_GITLAB_PROJECT != 1 ]; then
+	cd /dest/$pname
+	rm -Rf .flake8 .gitignore .gitlab-ci.yml README.md TODO.md CONTRIBUTING.md CICD_SETUP.md
+fi
+
+# Create the gitlab project and do an initial commit
+if [ $CREATE_GITLAB_PROJECT = 1 ] && [ "X$GITLAB_HOST" != "X" ] && [ "X$GITLAB_USER" != "X" ] && [ "X$GITLAB_API_TOKEN" != "X" ]; then
+	cd /dest/$pname
+	curl --header "PRIVATE-TOKEN: $GITLAB_API_TOKEN" -X POST "$GITLAB_HOST/api/v4/projects?name=$pname"
+	git init
+	git remote add origin $GITLAB_HOST/$GITLAB_USER/$pname.git
+	git add .
+	if [ $GITLAB_STORE_CREDS = 1 ]; then
+		git config credential.helper store
+	fi
+	git commit -m "Initial commit"
+	git push -u origin master
+	git checkout -b prod
+	git push -u origin prod
+	git checkout master
+fi
+
+
+
+

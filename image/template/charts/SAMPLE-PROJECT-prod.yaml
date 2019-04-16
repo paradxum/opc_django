@@ -1,0 +1,27 @@
+
+appImageTag: 1.0.0
+
+postgresql:
+  persistence:
+    storageClass: nfs-client
+
+nginx:
+  addLabels:
+    deployDate: TODAY
+
+app:
+  addLabels:
+    deployDate: TODAY
+  secretKey: somethingNew
+
+imagePullSecrets:
+  - name: gitlab
+
+ingress:
+  enabled: true 
+  hosts:
+    - testp10-prod.my.hostname.com
+  tls: 
+    - hosts:
+      - testp10-prod.my.hostname.com
+      secretName: testp10-prod-tls

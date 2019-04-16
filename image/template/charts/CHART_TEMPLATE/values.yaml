@@ -1,0 +1,95 @@
+# Default values for $$PROJECT_NAME$$.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+nameOverride: ""
+fullnameOverride: ""
+
+appImageTag: SetByCI
+
+postgresql:
+  image:
+    repository: postgres
+    tag: 11.1-alpine
+    pullPolicy: IfNotPresent
+  persistence:
+    enabled: true
+#   storageClass: nfs-client
+  securityContext:
+    enabled: true
+    fsGroup: 70
+    runAsUser: 70
+  postgresqlDatabase: django_db
+  postgresqlUsername: django_user
+
+redis:
+  image:
+    pullPolicy: IfNotPresent
+  cluster:
+    enabled: false
+  usePassword: false
+  master:
+    persistence:
+      enabled: false
+
+nginx:
+  replicaCount: 1
+  image:
+    repository: CI_REGISTRY/$$PROJECT_NAME$$-nginx
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 80
+  resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  addLabels: {}
+
+app:
+  replicaCount: 1
+  image:
+    repository: CI_REGISTRY/$$PROJECT_NAME$$-app
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 8000
+  resources: {}
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  addLabels: {}
+  secretKey: NotASecret
+
+imagePullSecrets: []
+#  - name: gitlab
+
+mediafiles:
+  persistence:
+    enabled: true
+    storageClass: nfs-client
+    accessMode: ReadWriteMany
+    size: "5Gi"
+staticfiles:
+  persistence:
+    enabled: true
+    storageClass: nfs-client
+    accessMode: ReadWriteMany
+    size: "5Gi"
+
+
+
+ingress:
+  enabled: false
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    kubernetes.io/tls-acme: "true"
+  paths: 
+    - /
+#  hosts:
+#    - $$PROJECT_NAME$$.example.local
+#  tls: 
+#    - hosts:
+#      - $$PROJECT_NAME$$.example.local
+#      secretName: $$PROJECT_NAME$$-tls
+#    

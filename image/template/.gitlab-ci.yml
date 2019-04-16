@@ -1,0 +1,213 @@
+image: docker:stable
+
+services:
+  - docker:dind
+
+stages:
+  - lint
+  - build
+  - test
+  - bump-semver
+  - tag
+  - deploy
+
+
+variables:
+  DOCKER_HOST: tcp://localhost:2375/
+  DOCKER_DRIVER: overlay2
+  COMPOSE_VER: 1.24.0
+  COMPOSE_HTTP_TIMEOUT: 600
+  APP_IMAGE: $CI_REGISTRY_IMAGE/$CI_PROJECT_NAME-app
+  APP_TEST_IMAGE: $CI_REGISTRY_IMAGE/$CI_PROJECT_NAME-app:$CI_BUILD_REF_NAME-test
+  NGINX_IMAGE: $CI_REGISTRY_IMAGE/$CI_PROJECT_NAME-nginx
+  NGINX_TEST_IMAGE: $CI_REGISTRY_IMAGE/$CI_PROJECT_NAME-nginx:$CI_BUILD_REF_NAME-test
+
+
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+  - |
+    cache_dockerhub_image() {
+      image=$1
+      cache_image=`echo $1|tr "/" "_"|tr ":" "-"`
+      cache_image=$CI_REGISTRY_IMAGE/cache:$cache_image
+      docker pull $cache_image || true
+      local_digest=`docker images $cache_image --format '{{.ID}}' --no-trunc`
+      docker pull $image
+      dockerhub_digest=`docker images $1 --format '{{.ID}}' --no-trunc`
+      if ! [ "$dockerhub_digest" = "$local_digest" ]; then
+        echo "#### Updating Cache ####"
+        docker tag $image $cache_image && docker push $cache_image
+      else echo "#### Cache Matches - No Update Needed ####"
+      fi  
+    }
+
+
+
+python_lint:
+  stage: lint
+  except:
+    - tags
+  script:
+    - cache_dockerhub_image mvantellingen/python-lint
+    - docker run --volume "$PWD":/code --volume /var/run/docker.sock:/var/run/docker.sock mvantellingen/python-lint flake8 app/
+
+helm_lint:
+  stage: lint
+  except:
+    - tags
+  script:
+    - cache_dockerhub_image alpine/helm
+    - docker run --volume "$PWD/charts":/apps alpine/helm lint $CI_PROJECT_NAME
+
+.codequality:
+ stage: lint
+ except:
+   - tags
+ script:
+   - cache_dockerhub_image codeclimate/codeclimate
+   - cache_dockerhub_image codeclimate/codeclimate-structure:latest
+   - cache_dockerhub_image codeclimate/codeclimate-duplication:latest
+   - docker run --env CODECLIMATE_CODE="$PWD" --env CONTAINER_TIMEOUT_SECONDS=1800 -v "$PWD":/code -v /var/run/docker.sock:/var/run/docker.sock -v /tmp/cc:/tmp/cc codeclimate/codeclimate analyze -f json > codeclimate.json
+ artifacts:
+   paths: [codeclimate.json]
+
+
+
+build_app_test:
+  stage: build
+  script:
+    - find . -type f -exec sed -i -i '/# !BUILD-STRIP/d' {} \;
+    - cat app/.image_files/requirements.txt
+    - docker pull $APP_TEST_IMAGE || true
+    - docker build --cache-from $APP_TEST_IMAGE -t $APP_TEST_IMAGE app/.
+    - docker push $APP_TEST_IMAGE
+
+build_nginx:
+  stage: build
+  script:
+    - docker pull $NGINX_TEST_IMAGE || true
+    - docker build --cache-from $NGINX_TEST_IMAGE -t $NGINX_TEST_IMAGE nginx/.
+    - docker push $NGINX_TEST_IMAGE
+
+
+
+django_tests:
+  stage: test
+  image: docker/compose:1.24.0
+  except:
+    - tags
+  script:
+    - cache_dockerhub_image postgres:10.5-alpine
+    - cache_dockerhub_image redis:5.0-alpine
+    - docker pull $APP_TEST_IMAGE
+    - docker-compose up -d db
+    - docker-compose up -d redis
+    - "sed -i 's#build: ./app#image: $APP_TEST_IMAGE#' docker-compose.yml"
+    - "sed -i '/..app.:/d' docker-compose.yml"
+    - docker-compose run -u 0 ${CI_PROJECT_NAME}-app /bin/sh -c "pip install coverage && python3.7 manage.py makemigrations && coverage run --source='.' manage.py test upload && coverage report"
+  coverage: '/TOTAL.*?(\d{1,2}.\d+%)/'
+
+nginx_config_test:
+  stage: test
+  except:
+    - tags
+  script:
+    - docker pull $NGINX_TEST_IMAGE
+    - docker run -e APP_DNS_NAME=localhost $NGINX_TEST_IMAGE /bin/sh -c "nginx -t"
+
+
+
+bump_semver:
+  stage: bump-semver
+  image: ericschultz/gitlab-semantic-versioning:latest
+  before_script:
+    - "export NPA_USERNAME=$(echo $NPA|cut -d : -f 1)"
+    - "export NPA_PASSWORD=$(echo $NPA|cut -d : -f 2)"
+  only:
+    - prod
+  script:
+    - python3 /version-update/version-update.py
+
+
+
+tag-build:
+  stage: tag
+  script:
+    - docker pull $APP_TEST_IMAGE
+    - docker tag $APP_TEST_IMAGE $APP_IMAGE:$CI_BUILD_REF_NAME
+    - docker push $APP_IMAGE:$CI_BUILD_REF_NAME
+    - docker pull $NGINX_TEST_IMAGE
+    - docker tag $NGINX_TEST_IMAGE $NGINX_IMAGE:$CI_BUILD_REF_NAME
+    - docker push $NGINX_IMAGE:$CI_BUILD_REF_NAME
+
+tag-dev-latest:
+  stage: tag
+  only:
+    - master
+  script:
+    - docker pull $APP_TEST_IMAGE
+    - docker tag $APP_TEST_IMAGE $APP_IMAGE:dev-latest
+    - docker push $APP_IMAGE:dev-latest
+    - docker pull $NGINX_TEST_IMAGE
+    - docker tag $NGINX_TEST_IMAGE $NGINX_IMAGE:dev-latest
+    - docker push $NGINX_IMAGE:dev-latest
+
+tag-prod-latest:
+  stage: tag
+  only:
+    - prod
+  script:
+    - docker pull $APP_TEST_IMAGE
+    - docker tag $APP_TEST_IMAGE $APP_IMAGE:latest
+    - docker push $APP_IMAGE:latest
+    - docker pull $NGINX_TEST_IMAGE
+    - docker tag $NGINX_TEST_IMAGE $NGINX_IMAGE:latest
+    - docker push $NGINX_IMAGE:latest
+
+build_charts:
+  stage: tag
+  script:
+    - cache_dockerhub_image alpine/helm
+    - cd charts/$CI_PROJECT_NAME
+    - sed -i "s/SetByCI/$CI_BUILD_REF_NAME/" values.yaml
+    - sed -i "s#CI_REGISTRY#$CI_REGISTRY_IMAGE#" values.yaml
+    - sed -i "s/SetByCI/$CI_BUILD_REF_NAME/" Chart.yaml
+    - cd ..
+    - alias helm="docker run -v "$PWD":/apps -v "$PWD/helm_config":/root/.helm alpine/helm"
+    - mkdir helm_config
+    - helm init --client-only
+    - helm dependency build $CI_PROJECT_NAME
+    - helm package $CI_PROJECT_NAME
+    - CHARTNAME=`ls $CI_PROJECT_NAME*.tgz`
+    - apk add --update -t deps curl
+    - curl --data-binary "@$CHARTNAME" -u $CI_HELM_AUTH $CI_HELM_REPO_API
+
+
+
+deploy-master:
+  # This section deploys to a kube cluster with your helm chart. It uses the configuration in charts/<project_name>-master.yaml
+  # Note: you have to have the CI/CD variable KUBECONFIG set ... See INITAL_CONFIG.md
+  stage: deploy
+  only:
+    - master
+  script:
+    - cache_dockerhub_image alpine/helm
+    - cd charts/
+    - sed -i "s/SetByCI/$CI_BUILD_REF_NAME/" $CI_PROJECT_NAME/Chart.yaml
+    - export DEPLOYVERSION=$(grep "version:" $CI_PROJECT_NAME/Chart.yaml |cut -d " " -f 2)
+    - export DEPLOYNAME=$CI_PROJECT_NAME-$CI_BUILD_REF_NAME
+    - sed -i "s/CISetDate/`date +%F-%H.%M.%S`/" ${DEPLOYNAME}.yaml
+    - mkdir helm_config
+    - mkdir kube_config
+    - echo ${KUBECONFIG} | base64 -d > kube_config/config
+    - alias helm="docker run -v "$PWD":/apps -v "$PWD/helm_config":/root/.helm -v "$PWD/kube_config/config":/root/.kube/config alpine/helm"
+    - helm init --client-only
+    - "export HELM_USER=$(echo $CI_HELM_AUTH|cut -d : -f 1)"
+    - "export HELM_PASS=$(echo $CI_HELM_AUTH|cut -d : -f 2)"
+    - helm repo add --username $CI_HELM_REPO_USER --password $CI_HELM_REPO_PASS deployrepo $CI_HELM_REPO
+    - export DEPLOYMENTS=$(helm ls)
+    - export DEPLOYED=$(echo $DEPLOYMENTS|grep $DEPLOYNAME|wc -l)
+    - export HELM_CMD_INSTALL="install --name $DEPLOYNAME --namespace $DEPLOYNAME -f $DEPLOYNAME.yaml --version=$DEPLOYVERSION deployrepo/$CI_PROJECT_NAME"
+    - export HELM_CMD_UPGRADE="upgrade -f $DEPLOYNAME.yaml $DEPLOYNAME --version $DEPLOYVERSION deployrepo/$CI_PROJECT_NAME"
+    - if [ ${DEPLOYED} -eq 0 ]; then echo helm $HELM_CMD_INSTALL; helm $HELM_CMD_INSTALL; else echo helm $HELM_CMD_UPGRADE; helm $HELM_CMD_UPGRADE; fi
+

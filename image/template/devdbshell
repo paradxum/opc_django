@@ -1,0 +1,4 @@
+#!/bin/bash
+docker-compose up -d db
+docker-compose up --no-deps -d $$PROJECT_NAME$$-app
+docker-compose exec $$PROJECT_NAME$$-app python3.7 manage.py dbshell

@@ -1,0 +1,25 @@
+{{- if .Values.mediafiles.persistence.enabled }}
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: data-{{ include "$$PROJECT_NAME$$.fullname" . }}-mediafiles
+  labels:
+    app: {{ include "$$PROJECT_NAME$$.fullname" . }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+spec:
+  accessModes:
+    - {{ .Values.mediafiles.persistence.accessMode | quote }}
+  resources:
+    requests:
+      storage: {{ .Values.mediafiles.persistence.size | quote }}
+{{- if .Values.mediafiles.persistence.storageClass }}
+{{- if (eq "-" .Values.mediafiles.persistence.storageClass) }}
+  storageClassName: ""
+{{- else }}
+  storageClassName: "{{ .Values.mediafiles.persistence.storageClass }}"
+{{- end }}
+{{- end }}
+{{- end }}
+

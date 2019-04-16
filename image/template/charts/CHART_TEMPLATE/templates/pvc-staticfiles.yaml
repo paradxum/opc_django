@@ -1,0 +1,31 @@
+{{- if .Values.staticfiles.persistence.enabled }}
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: data-{{ include "$$PROJECT_NAME$$.fullname" . }}-staticfiles
+  labels:
+    app: {{ include "$$PROJECT_NAME$$.fullname" . }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+  annotations:
+  {{- if .Values.staticfiles.persistence.storageClass }}
+    volume.beta.kubernetes.io/storage-class: {{ .Values.staticfiles.persistence.storageClass | quote }}
+  {{- else }}
+    volume.alpha.kubernetes.io/storage-class: default
+  {{- end }}
+spec:
+  accessModes:
+    - {{ .Values.staticfiles.persistence.accessMode | quote }}
+  resources:
+    requests:
+      storage: {{ .Values.staticfiles.persistence.size | quote }}
+{{- if .Values.staticfiles.persistence.storageClass }}
+{{- if (eq "-" .Values.staticfiles.persistence.storageClass) }}
+  storageClassName: ""
+{{- else }}
+  storageClassName: "{{ .Values.staticfiles.persistence.storageClass }}"
+{{- end }}
+{{- end }}
+{{- end }}
+

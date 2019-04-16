@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "$$PROJECT_NAME$$.fullname" . }}-nginx
+  labels:
+    app.kubernetes.io/name: {{ include "$$PROJECT_NAME$$.name" . }}-nginx
+    helm.sh/chart: {{ include "$$PROJECT_NAME$$.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  replicas: {{ .Values.nginx.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "$$PROJECT_NAME$$.name" . }}-nginx
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "$$PROJECT_NAME$$.name" . }}-nginx
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        {{- with .Values.nginx.addLabels }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      volumes:
+        - name: mediafiles
+          persistentVolumeClaim:
+            claimName: data-{{ include "$$PROJECT_NAME$$.fullname" . }}-mediafiles
+        - name: staticfiles
+          persistentVolumeClaim:
+            claimName: data-{{ include "$$PROJECT_NAME$$.fullname" . }}-staticfiles
+      containers:
+        - name: {{ .Chart.Name }}-nginx
+          image: "{{ .Values.nginx.image.repository }}:{{ .Values.appImageTag }}"
+          imagePullPolicy: {{ .Values.nginx.image.pullPolicy }}
+          env:
+            - name: APP_DNS_NAME
+              value: {{ .Release.Name }}-app
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /usr/src/app/mediafiles
+              name: mediafiles
+            - mountPath: /usr/src/app/staticfiles
+              name: staticfiles
+          livenessProbe:
+            httpGet:
+              path: /staticfiles/admin/css/base.css
+              port: http
+            initalDelaySeconds: 30
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /staticfiles/admin/css/base.css
+              port: http
+            initalDelaySeconds: 30
+            periodSeconds: 15
+          resources:
+            {{- toYaml .Values.nginx.resources | nindent 12 }}
+      {{- with .Values.nginx.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- with .Values.nginx.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+    {{- with .Values.nginx.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+

@@ -1,0 +1,98 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "$$PROJECT_NAME$$.fullname" . }}-app
+  labels:
+    app.kubernetes.io/name: {{ include "$$PROJECT_NAME$$.name" . }}-app
+    helm.sh/chart: {{ include "$$PROJECT_NAME$$.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}-app
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  replicas: {{ .Values.app.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "$$PROJECT_NAME$$.name" . }}-app
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "$$PROJECT_NAME$$.name" . }}-app
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        {{- with .Values.app.addLabels }}
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      volumes:
+        - name: mediafiles
+          persistentVolumeClaim:
+            claimName: data-{{ include "$$PROJECT_NAME$$.fullname" . }}-mediafiles
+        - name: staticfiles
+          persistentVolumeClaim:
+            claimName: data-{{ include "$$PROJECT_NAME$$.fullname" . }}-staticfiles
+      containers:
+        - name: {{ .Chart.Name }}-app
+          image: "{{ .Values.app.image.repository }}:{{ .Values.appImageTag }}"
+          imagePullPolicy: {{ .Values.app.image.pullPolicy }}
+          env:
+            - name: REDIS_CONNSTR
+              value: redis://{{ .Release.Name }}-redis-master:6379/1
+            - name: SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-app
+                  key: secret_key
+            - name: SQL_ENGINE
+              value: django.db.backends.postgresql
+            - name: SQL_DATABASE
+              value: {{ .Values.postgresql.postgresqlDatabase }}
+            - name: SQL_USER
+              value: {{ .Values.postgresql.postgresqlUsername }}
+            - name: SQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-postgresql
+                  key: postgresql-password
+            - name: SQL_HOST
+              value: {{ .Release.Name }}-postgresql
+            - name: SQL_PORT
+              value: "5432"
+          ports:
+            - name: app-http
+              containerPort: 8000
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /usr/src/app/mediafiles
+              name: mediafiles
+            - mountPath: /usr/src/app/staticfiles
+              name: staticfiles
+          livenessProbe:
+            httpGet:
+              path: /admin
+              port: app-http
+            initalDelaySeconds: 30
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /admin
+              port: app-http
+            initalDelaySeconds: 30
+            periodSeconds: 15
+          resources:
+            {{- toYaml .Values.app.resources | nindent 12 }}
+      {{- with .Values.app.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    {{- with .Values.app.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+    {{- with .Values.app.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+    {{- end }}
+

@@ -1,0 +1,7 @@
+[flake8]
+# F401 imported but unused
+# W191 indentation contains tabs
+# E225 missing whitespace around operator
+# 
+ignore = F401,W191,E225
+max-line-length = 200

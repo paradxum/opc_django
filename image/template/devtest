@@ -1,0 +1,10 @@
+#!/bin/bash
+docker pull mvantellingen/python-lint
+docker-compose up -d db
+docker-compose up -d redis
+docker-compose run --no-deps $$PROJECT_NAME$$-app python3.7 manage.py makemigrations
+echo "########### Django Test and Coverage"
+docker-compose run --no-deps $$PROJECT_NAME$$-app /bin/sh -c "coverage run --source='.' manage.py test upload && coverage report"
+echo "########### Python Lint (flake8)"
+docker run --volume "$PWD":/code --volume /var/run/docker.sock:/var/run/docker.sock mvantellingen/python-lint flake8 app/
+echo "########### Done"

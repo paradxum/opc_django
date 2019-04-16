@@ -1,0 +1,33 @@
+
+appImageTag: master
+
+postgresql:
+  image:
+    pullPolicy: Always
+  persistence:
+    storageClass: nfs-client
+
+nginx:
+  image:
+    pullPolicy: Always
+  addLabels:
+    deployDate: CISetDate
+
+app:
+  image:
+    pullPolicy: Always
+  addLabels:
+    deployDate: CISetDate
+  secretKey: SECRET_KEY
+
+imagePullSecrets:
+  - name: gitlab
+
+ingress:
+  enabled: true 
+  hosts:
+    - testp10-master.my.hostname.com
+  tls: 
+    - hosts:
+      - testp10-master.my.hostname.com
+      secretName: testp10-master-tls

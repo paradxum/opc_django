@@ -1,0 +1,21 @@
+FROM python:3.7-alpine
+ENV PYTHONUNBUFFERED 1
+
+RUN apk update	\
+	&& apk add --virtual build-deps gcc python3-dev musl-dev \
+	&& apk add postgresql-dev postgresql-client
+
+RUN mkdir -p /usr/src/app
+WORKDIR /usr/src/app
+
+ADD .image_files/requirements.txt /usr/src/app/.image_files/requirements.txt
+RUN pip install -r .image_files/requirements.txt
+
+RUN apk del build-deps 	&& rm -rf /var/cache/apk/*
+
+COPY . /usr/src/app/
+RUN chown 1000 -R /usr/src/app 
+USER 1000
+
+#ENTRYPOINT ["/usr/src/app/.image_files/entrypoint.sh"]
+CMD ["gunicorn","$$PROJECT_NAME$$.wsgi:application","--bind","0.0.0.0:8000"]
