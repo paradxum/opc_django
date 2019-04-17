@@ -26,8 +26,8 @@ imagePullSecrets:
 ingress:
   enabled: true 
   hosts:
-    - testp10-master.my.hostname.com
+    - $$PROJECT_NAME$$-master.my.hostname.com
   tls: 
     - hosts:
-      - testp10-master.my.hostname.com
-      secretName: testp10-master-tls
+      - $$PROJECT_NAME$$-master.my.hostname.com
+      secretName: $$PROJECT_NAME$$-master-tls
