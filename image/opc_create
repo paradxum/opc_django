@@ -31,7 +31,7 @@ DJANGO_VER=${DJANGO_VER:-2}
 PYTHON_VER=${PYTHON_VER:-3.7}
 POSTGRES_VER=${POSTGRES_VER:-10.5}
 NGINX_VER=${NGINX_VER:-1.15.0}
-REDIS_VER=${REDIS_VER:-5.0}
+REDIS_VER=${REDIS_VER:-4.0.14}
 
 # Calculate our gravatar url
 GSUM=`echo $pname| md5sum|cut -d " " -f 1`

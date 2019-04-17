@@ -37,7 +37,7 @@ export DJANO_VER=2	# 1 or 2 for latest of that version, point release for specif
 export PYTHON_VER=3.7		
 export POSTGRES_VER=10.5
 export NGINX_VER=1.15.0
-export REDIS_VER=5.0
+export REDIS_VER=4.0.14
 
 
 #export BUILDER_IMAGE=opc_django:dev	# For local work on builder
