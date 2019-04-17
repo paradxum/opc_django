@@ -23,11 +23,11 @@ services:
       - db
       - redis
   db:
-    image: postgres:$$POSTGRES_VER$$-alpine
+    image: bitnami/postgres:$$POSTGRES_VER$$
     volumes:
       - db_data:/var/lib/postgresql/data/
   redis:
-    image: redis:$$REDIS_VER$$
+    image: bitnami/redis:$$REDIS_VER$$
   nginx:
     build: ./nginx
     environment:

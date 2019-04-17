@@ -35,7 +35,7 @@ export GITLAB_API_TOKEN="gitlab_api_token"
 export DJANO_VER=2	# 1 or 2 for latest of that version, point release for specific ver
 # Note: For the docker images below, we use the -alpine version automatically
 export PYTHON_VER=3.7		
-export POSTGRES_VER=10.5
+export POSTGRES_VER=10.7.0
 export NGINX_VER=1.15.0
 export REDIS_VER=4.0.14
 

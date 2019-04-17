@@ -9,8 +9,8 @@ appImageTag: SetByCI
 
 postgresql:
   image:
-    repository: postgres
-    tag: $$POSTGRES_VER$$-alpine
+    repository: bitnami/postgres
+    tag: $$POSTGRES_VER$$
     pullPolicy: IfNotPresent
   persistence:
     enabled: true
@@ -24,7 +24,7 @@ postgresql:
 
 redis:
   image:
-    repository: redis
+    repository: bitnami/redis
     tag: $$REDIS_VER$$
     pullPolicy: IfNotPresent
   cluster:
