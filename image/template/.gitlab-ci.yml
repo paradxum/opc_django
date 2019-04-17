@@ -97,7 +97,7 @@ django_tests:
   except:
     - tags
   script:
-    - cache_dockerhub_image bitnami/postgres:$$POSTGRES_VER$$
+    - cache_dockerhub_image bitnami/postgresql:$$POSTGRES_VER$$
     - cache_dockerhub_image bitnami/redis:$$REDIS_VER$$
     - docker pull $APP_TEST_IMAGE
     - docker-compose up -d db
