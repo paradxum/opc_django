@@ -204,7 +204,7 @@ deploy-master:
     - helm init --client-only
     - "export HELM_USER=$(echo $CI_HELM_AUTH|cut -d : -f 1)"
     - "export HELM_PASS=$(echo $CI_HELM_AUTH|cut -d : -f 2)"
-    - helm repo add --username $CI_HELM_REPO_USER --password $CI_HELM_REPO_PASS deployrepo $CI_HELM_REPO
+    - helm repo add --username $HELM_USER --password $HELM_PASS deployrepo $CI_HELM_REPO
     - export DEPLOYMENTS=$(helm ls)
     - export DEPLOYED=$(echo $DEPLOYMENTS|grep $DEPLOYNAME|wc -l)
     - export HELM_CMD_INSTALL="install --name $DEPLOYNAME --namespace $DEPLOYNAME -f $DEPLOYNAME.yaml --version=$DEPLOYVERSION deployrepo/$CI_PROJECT_NAME"
