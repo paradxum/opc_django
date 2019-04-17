@@ -9,7 +9,7 @@ appImageTag: SetByCI
 
 postgresql:
   image:
-    repository: bitnami/postgres
+    repository: bitnami/postgresql
     tag: $$POSTGRES_VER$$
     pullPolicy: IfNotPresent
   persistence:
