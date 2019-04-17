@@ -27,7 +27,6 @@ GITLAB_HOST=${GITLAB_HOST:-""}
 GITLAB_USER=${GITLAB_USER:-""}
 GITLAB_API_TOKEN=${GITLAB_API_TOKEN:-""}
 
-#TODO
 DJANGO_VER=${DJANGO_VER:-2}
 PYTHON_VER=${PYTHON_VER:-3.7}
 POSTGRES_VER=${POSTGRES_VER:-10.5}
@@ -50,6 +49,26 @@ cd /dest/$pname
 find . -type f -exec sed -i "s#\\\$\\\$PROJECT_NAME\\\$\\\$#$pname#g" {} \;
 # Secret Key
 find . -type f -exec sed -i "s#\\\$\\\$SECRET_KEY\\\$\\\$#$secret#g" {} \;
+# Python Version
+find . -type f -exec sed -i "s#\\\$\\\$PYTHON_VER\\\$\\\$#$PYTHON_VER#g" {} \;
+# Postgres Version
+find . -type f -exec sed -i "s#\\\$\\\$POSTGRES_VER\\\$\\\$#$POSTGRES_VER#g" {} \;
+# Nginx Version
+find . -type f -exec sed -i "s#\\\$\\\$NGINX_VER\\\$\\\$#$NGINX_VER#g" {} \;
+# Redis Version
+find . -type f -exec sed -i "s#\\\$\\\$REDIS_VER\\\$\\\$#$REDIS_VER#g" {} \;
+
+# Django Version
+find . -type f -exec sed -i "s#\\\$\\\$DJANGO_VER\\\$\\\$#$DJANGO_VER#g" {} \;
+if [ "X$DJANGO_VER" = "X1" ]; then
+	# Default, do nothing
+	echo ""
+elif [ "X$DJANGO_VER" = "X2" ]; then
+	sed -i "s#^Django.*#Django>=2.2,<3.0#" app/.image_files/requirements.txt
+else
+	sed -i "s#^Django.*#Django=$DJANGO_VER#" app/.image_files/requirements.txt
+fi
+
 
 # Create our django app
 docker-compose build ${pname}-app
@@ -105,10 +124,11 @@ __EXTRA_SETTINGS__
 
 	# Url mappings for django toolbar
 sed -i "s/import admin.*/import admin\nfrom django.conf.urls import include    # !BUILD-STRIP\nimport debug_toolbar    # !BUILD-STRIP/" urls.py
-cat >>urls.py <<__EXTRA_URLS__
-
-urlpatterns.append(url(r'^__debug__/', include(debug_toolbar.urls)))   # !BUILD-STRIP
-__EXTRA_URLS__
+if [ "X$DJANGO_VER" = "X1" ]; then
+	echo "urlpatterns.append(url(r'^__debug__/', include(debug_toolbar.urls)))   # !BUILD-STRIP" >>urls.py
+else
+	echo "urlpatterns.append(path('__debug__/', include(debug_toolbar.urls)))   # !BUILD-STRIP" >>urls.py
+fi
 
 # Enable the Entrypoint file that will run the migrations
 cd /dest/$pname/app
@@ -116,10 +136,10 @@ sed -i "s/#ENTRYPOINT/ENTRYPOINT/" Dockerfile
 
 # Spin up the 2 containers so we can run the migrations
 docker-compose up -d --build db
-docker-compose run --no-deps ${pname}-app python3.7 manage.py migrate --noinput
+docker-compose run --no-deps ${pname}-app python$PYTHON_VER manage.py migrate --noinput
 
 # Create our app
-docker-compose run --no-deps ${pname}-app python3.7 manage.py startapp $appname
+docker-compose run --no-deps ${pname}-app python$PYTHON_VER manage.py startapp $appname
 sed -i "s/INSTALLED_APPS = \[/INSTALLED_APPS = \[\n    '$appname',\n    'django_extensions',/" /dest/$pname/app/$pname/settings.py
 
 # Just incase we missed something (line nginx)

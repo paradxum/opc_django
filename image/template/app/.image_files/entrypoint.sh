@@ -8,6 +8,6 @@ if [ "$SQL_ENGINE" = "django.db.backends.postgresql" ]; then
 	echo "PostgreSQL started"
 	fi
 
-python3.7 manage.py migrate --noinput
-python3.7 manage.py collectstatic --noinput
+python$$PYTHON_VER$$ manage.py migrate --noinput
+python$$PYTHON_VER$$ manage.py collectstatic --noinput
 exec "$@"

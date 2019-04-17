@@ -23,11 +23,11 @@ services:
       - db
       - redis
   db:
-    image: postgres:10.5-alpine
+    image: postgres:$$POSTGRES_VER$$-alpine
     volumes:
       - db_data:/var/lib/postgresql/data/
   redis:
-    image: redis:5.0-alpine
+    image: redis:$$REDIS_VER$$-alpine
   nginx:
     build: ./nginx
     environment:

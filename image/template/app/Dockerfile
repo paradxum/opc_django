@@ -1,4 +1,4 @@
-FROM python:3.7-alpine
+FROM python:$$PYTHON_VER$$-alpine
 ENV PYTHONUNBUFFERED 1
 
 RUN apk update	\

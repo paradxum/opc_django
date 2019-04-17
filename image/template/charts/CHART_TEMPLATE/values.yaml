@@ -10,7 +10,7 @@ appImageTag: SetByCI
 postgresql:
   image:
     repository: postgres
-    tag: 11.1-alpine
+    tag: $$POSTGRES_VER$$-alpine
     pullPolicy: IfNotPresent
   persistence:
     enabled: true
@@ -24,6 +24,8 @@ postgresql:
 
 redis:
   image:
+    repository: redis
+    tag: $$REDIS_VER$$-alpine
     pullPolicy: IfNotPresent
   cluster:
     enabled: false

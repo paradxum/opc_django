@@ -60,7 +60,6 @@ export GITLAB_HOST="https://my_gitlab.host.com"
 export GITLAB_USER="my.gitlab.username"
 export GITLAB_API_TOKEN="gitlab_api_token"
 
-# TODO
 export DJANO_VER=2	# 1 or 2 for latest of that version, point release for specific ver
 # Note: For the docker images below, we use the -alpine version automatically
 export PYTHON_VER=3.7		

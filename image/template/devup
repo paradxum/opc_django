@@ -1,10 +1,10 @@
 #!/bin/bash
 docker-compose up -d db
 docker-compose up -d redis
-docker-compose run --no-deps $$PROJECT_NAME$$-app python3.7 manage.py makemigrations
+docker-compose run --no-deps $$PROJECT_NAME$$-app python$$PYTHON_VER$$ manage.py makemigrations
 if [ ! -f .devadmin ]; then
-	echo "from django.contrib.auth import get_user_model; User = get_user_model(); User.objects.filter(email='admin@example.com').delete(); User.objects.create_superuser('admin', 'admin@example.com', 'admin')"| docker-compose run --no-deps $$PROJECT_NAME$$-app python3.7 manage.py shell
+	echo "from django.contrib.auth import get_user_model; User = get_user_model(); User.objects.filter(email='admin@example.com').delete(); User.objects.create_superuser('admin', 'admin@example.com', 'admin')"| docker-compose run --no-deps $$PROJECT_NAME$$-app python$$PYTHON_VER$$ manage.py shell
 	echo "Username: admin\nPassword: admin\n" >.devadmin
 fi
 
-docker-compose run -p 8000:8000 -e DEBUG=True --no-deps $$PROJECT_NAME$$-app python3.7 manage.py runserver 0.0.0.0:8000
+docker-compose run -p 8000:8000 -e DEBUG=True --no-deps $$PROJECT_NAME$$-app python$$PYTHON_VER$$ manage.py runserver 0.0.0.0:8000
