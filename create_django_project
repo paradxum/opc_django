@@ -53,7 +53,7 @@ docker run --privileged \
 	-v "`realpath ~`/.git-credentials":"/root/.git-credentials" \
 	-e ID_UID=`id -u` -e ID_GID=`id -g` \
 	-e CREATE_HELM_CHART -e CREATE_GITLAB_PROJECT -e GITLAB_STORE_CREDS -e GITLAB_HOST -e GITLAB_USER -e GITLAB_API_TOKEN -e PYTHON_VER -e POSTGRES_VER -e NGINX_VER -e REDIS_VER \
-	opc_django:dev $1 $2 >$pname.create.log 2>&1
+	$BUILDER_IMAGE $1 $2 >$pname.create.log 2>&1
 
 
 # All Done, Print a nice message
