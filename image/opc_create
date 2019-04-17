@@ -136,6 +136,7 @@ sed -i "s/#ENTRYPOINT/ENTRYPOINT/" Dockerfile
 
 # Spin up the 2 containers so we can run the migrations
 docker-compose up -d --build db
+sleep 10	# Give it a chance to start up and configure
 docker-compose run --no-deps ${pname}-app python$PYTHON_VER manage.py migrate --noinput
 
 # Create our app
