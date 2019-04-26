@@ -5,3 +5,4 @@
 # 
 ignore = F401,W191,E225
 max-line-length = 200
+exclude = .git,__pycache__,migrations
