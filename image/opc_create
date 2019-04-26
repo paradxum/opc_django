@@ -47,6 +47,8 @@ cp -dR /script/template/. /dest/$pname/
 cd /dest/$pname
 # Project Name
 find . -type f -exec sed -i "s#\\\$\\\$PROJECT_NAME\\\$\\\$#$pname#g" {} \;
+# App Name
+find . -type f -exec sed -i "s#\\\$\\\$APP_NAME\\\$\\\$#$appname#g" {} \;
 # Secret Key
 find . -type f -exec sed -i "s#\\\$\\\$SECRET_KEY\\\$\\\$#$secret#g" {} \;
 # Python Version

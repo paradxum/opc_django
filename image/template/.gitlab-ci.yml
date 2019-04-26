@@ -104,7 +104,7 @@ django_tests:
     - docker-compose up -d redis
     - "sed -i 's#build: ./app#image: $APP_TEST_IMAGE#' docker-compose.yml"
     - "sed -i '/..app.:/d' docker-compose.yml"
-    - docker-compose run -u 0 ${CI_PROJECT_NAME}-app /bin/sh -c "pip install coverage && python3.7 manage.py makemigrations && coverage run --source='.' manage.py test upload && coverage report"
+    - docker-compose run -u 0 ${CI_PROJECT_NAME}-app /bin/sh -c "pip install coverage && python3.7 manage.py makemigrations && coverage run --source='.' manage.py test $$APP_NAME$$ && coverage report"
   coverage: '/TOTAL.*?(\d{1,2}.\d+%)/'
 
 nginx_config_test:
