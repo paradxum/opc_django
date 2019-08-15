@@ -6,6 +6,7 @@ postgresql:
     pullPolicy: Always
   persistence:
     storageClass: nfs-client
+  postgresqlPassword: SETAPASSWORD
 
 nginx:
   image:

@@ -4,6 +4,7 @@ appImageTag: 1.0.0
 postgresql:
   persistence:
     storageClass: nfs-client
+  postgresqlPassword: SETAPASSWORD
 
 nginx:
   addLabels:

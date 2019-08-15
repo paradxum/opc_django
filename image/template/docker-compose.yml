@@ -26,8 +26,12 @@ services:
     image: bitnami/postgresql:$$POSTGRES_VER$$
     volumes:
       - db_data:/var/lib/postgresql/data/
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
   redis:
     image: bitnami/redis:$$REDIS_VER$$
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
   nginx:
     build: ./nginx
     environment:

@@ -14,6 +14,8 @@ RUN pip install -r .image_files/requirements.txt
 RUN apk del build-deps 	&& rm -rf /var/cache/apk/*
 
 COPY . /usr/src/app/
+RUN if [ ! -d /usr/src/app/mediafiles ]; then mkdir /usr/src/app/mediafiles; fi
+RUN if [ ! -d /usr/src/app/staticfiles ]; then mkdir /usr/src/app/staticfiles; fi
 RUN chown 1000 -R /usr/src/app 
 USER 1000
 

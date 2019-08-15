@@ -12,12 +12,23 @@ if [ "X$1" = "X" ] ; then
 	exit 1
 fi       
 pname=$1
+echo $pname|grep '[^a-z0-9-]' >/dev/null
+if [ $? = 0 ] ; then
+	echo "Invalid Project Name, must be all lower case, 0-9 and -"
+	exit 1
+fi
 
 if [ "X$2" = "X" ] ; then
 	echo "Usage: $0 <Project Name> <App Name>"
 	exit 1
 fi       
 appname=$2
+echo $appname|grep '[^a-z0-9-]' >/dev/null
+if [ $? = 0 ] ; then
+	echo "Invalid App Name, must be all lower case, 0-9 and -"
+	exit 1
+fi
+
 
 CREATE_HELM_CHART=${CREATE_HELM_CHART:-1}
 
