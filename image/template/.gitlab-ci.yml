@@ -1,7 +1,7 @@
-image: docker:stable
+image: docker:18.06
 
 services:
-  - docker:dind
+  - docker:18.06-dind
 
 stages:
   - lint
@@ -56,7 +56,7 @@ helm_lint:
   except:
     - tags
   script:
-    - cache_dockerhub_image alpine/helm
+          - cache_dockerhub_image alpine/helm:3.1.1
     - docker run --volume "$PWD/charts":/apps alpine/helm lint $CI_PROJECT_NAME
 
 .codequality:
@@ -167,15 +167,16 @@ tag-prod-latest:
 build_charts:
   stage: tag
   script:
-    - cache_dockerhub_image alpine/helm
+    - cache_dockerhub_image alpine/helm:3.1.1
     - cd charts/$CI_PROJECT_NAME
     - sed -i "s/SetByCI/$CI_BUILD_REF_NAME/" values.yaml
     - sed -i "s#CI_REGISTRY#$CI_REGISTRY_IMAGE#" values.yaml
     - sed -i "s/SetByCI/$CI_BUILD_REF_NAME/" Chart.yaml
     - cd ..
-    - alias helm="docker run -v "$PWD":/apps -v "$PWD/helm_config":/root/.helm alpine/helm"
+    - alias helm="docker run -v "$PWD":/apps -v "$PWD/helm_config":/root/.config/helm -v "$PWD/helm_cache":/root/.cache/helm alpine/helm:3.1.1"
     - mkdir helm_config
-    - helm init --client-only
+    - helm repo add stable https://kubernetes-charts.storage.googleapis.com
+    - helm repo update
     - helm dependency build $CI_PROJECT_NAME
     - helm package $CI_PROJECT_NAME
     - CHARTNAME=`ls $CI_PROJECT_NAME*.tgz`
@@ -191,7 +192,7 @@ deploy-master:
   only:
     - master
   script:
-    - cache_dockerhub_image alpine/helm
+    - cache_dockerhub_image alpine/helm:3.1.1
     - cd charts/
     - sed -i "s/SetByCI/$CI_BUILD_REF_NAME/" $CI_PROJECT_NAME/Chart.yaml
     - export DEPLOYVERSION=$(grep "version:" $CI_PROJECT_NAME/Chart.yaml |cut -d " " -f 2)
@@ -200,14 +201,15 @@ deploy-master:
     - mkdir helm_config
     - mkdir kube_config
     - echo ${KUBECONFIG} | base64 -d > kube_config/config
-    - alias helm="docker run -v "$PWD":/apps -v "$PWD/helm_config":/root/.helm -v "$PWD/kube_config/config":/root/.kube/config alpine/helm"
-    - helm init --client-only
+    - alias helm="docker run -v "$PWD":/apps -v "$PWD/helm_config":/root/.config/helm -v "$PWD/helm_cache":/root/.cache/helm -v "$PWD/kube_config/config":/root/.kube/config alpine/helm:3.1.1"
+    - helm repo add stable https://kubernetes-charts.storage.googleapis.com
+    - helm repo update
     - "export HELM_USER=$(echo $CI_HELM_AUTH|cut -d : -f 1)"
     - "export HELM_PASS=$(echo $CI_HELM_AUTH|cut -d : -f 2)"
     - helm repo add --username $HELM_USER --password $HELM_PASS deployrepo $CI_HELM_REPO
     - export DEPLOYMENTS=$(helm ls)
     - export DEPLOYED=$(echo $DEPLOYMENTS|grep $DEPLOYNAME|wc -l)
-    - export HELM_CMD_INSTALL="install --name $DEPLOYNAME --namespace $DEPLOYNAME -f $DEPLOYNAME.yaml --version=$DEPLOYVERSION deployrepo/$CI_PROJECT_NAME"
-    - export HELM_CMD_UPGRADE="upgrade -f $DEPLOYNAME.yaml $DEPLOYNAME --version $DEPLOYVERSION deployrepo/$CI_PROJECT_NAME"
+    - export HELM_CMD_INSTALL="install $DEPLOYNAME deployrepo/$CI_PROJECT_NAME -f $DEPLOYNAME.yaml --version=$DEPLOYVERSION --namespace $DEPLOYNAME"
+    - export HELM_CMD_UPGRADE="upgrade $DEPLOYNAME deployrepo/$CI_PROJECT_NAME -f $DEPLOYNAME.yaml --version $DEPLOYVERSION"
     - if [ ${DEPLOYED} -eq 0 ]; then echo helm $HELM_CMD_INSTALL; helm $HELM_CMD_INSTALL; else echo helm $HELM_CMD_UPGRADE; helm $HELM_CMD_UPGRADE; fi
 
