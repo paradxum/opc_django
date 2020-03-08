@@ -69,13 +69,13 @@ spec:
             httpGet:
               path: /admin
               port: app-http
-            initalDelaySeconds: 30
+            initialDelaySeconds: 30
             periodSeconds: 15
           readinessProbe:
             httpGet:
               path: /admin
               port: app-http
-            initalDelaySeconds: 30
+            initialDelaySeconds: 30
             periodSeconds: 15
           resources:
             {{- toYaml .Values.app.resources | nindent 12 }}

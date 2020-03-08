@@ -49,13 +49,13 @@ spec:
             httpGet:
               path: /staticfiles/admin/css/base.css
               port: http
-            initalDelaySeconds: 30
+            initialDelaySeconds: 30
             periodSeconds: 15
           readinessProbe:
             httpGet:
               path: /staticfiles/admin/css/base.css
               port: http
-            initalDelaySeconds: 30
+            initialDelaySeconds: 30
             periodSeconds: 15
           resources:
             {{- toYaml .Values.nginx.resources | nindent 12 }}
