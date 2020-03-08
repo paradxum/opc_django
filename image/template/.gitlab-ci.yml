@@ -207,8 +207,7 @@ deploy-master:
     - "export HELM_USER=$(echo $CI_HELM_AUTH|cut -d : -f 1)"
     - "export HELM_PASS=$(echo $CI_HELM_AUTH|cut -d : -f 2)"
     - helm repo add --username $HELM_USER --password $HELM_PASS deployrepo $CI_HELM_REPO
-    - export DEPLOYMENTS=$(helm ls)
-    - export DEPLOYED=$(echo $DEPLOYMENTS|grep $DEPLOYNAME|wc -l)
+    - export DEPLOYED=$(helm ls --all-namespaces|cut -d ' ' -f 1|grep $DEPLOYNAME|wc -l)
     - export HELM_CMD_INSTALL="install $DEPLOYNAME deployrepo/$CI_PROJECT_NAME -f $DEPLOYNAME.yaml --version=$DEPLOYVERSION --namespace $DEPLOYNAME"
     - export HELM_CMD_UPGRADE="upgrade $DEPLOYNAME deployrepo/$CI_PROJECT_NAME -f $DEPLOYNAME.yaml --version $DEPLOYVERSION"
     - if [ ${DEPLOYED} -eq 0 ]; then echo helm $HELM_CMD_INSTALL; helm $HELM_CMD_INSTALL; else echo helm $HELM_CMD_UPGRADE; helm $HELM_CMD_UPGRADE; fi
