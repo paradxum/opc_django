@@ -209,6 +209,6 @@ deploy-master:
     - helm repo add --username $HELM_USER --password $HELM_PASS deployrepo $CI_HELM_REPO
     - export DEPLOYED=$(helm ls --all-namespaces|cut -d ' ' -f 1|grep $DEPLOYNAME|wc -l)
     - export HELM_CMD_INSTALL="install $DEPLOYNAME deployrepo/$CI_PROJECT_NAME -f $DEPLOYNAME.yaml --version=$DEPLOYVERSION --namespace $DEPLOYNAME"
-    - export HELM_CMD_UPGRADE="upgrade $DEPLOYNAME deployrepo/$CI_PROJECT_NAME -f $DEPLOYNAME.yaml --version $DEPLOYVERSION"
+    - export HELM_CMD_UPGRADE="upgrade $DEPLOYNAME deployrepo/$CI_PROJECT_NAME -f $DEPLOYNAME.yaml --version $DEPLOYVERSION --namespace $DEPLOYNAME"
     - if [ ${DEPLOYED} -eq 0 ]; then echo helm $HELM_CMD_INSTALL; helm $HELM_CMD_INSTALL; else echo helm $HELM_CMD_UPGRADE; helm $HELM_CMD_UPGRADE; fi
 
