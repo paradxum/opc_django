@@ -20,6 +20,8 @@ imagePullSecrets:
 
 ingress:
   enabled: true 
+  annotations:
+    - cert-manager.io/cluster-issuer: letsencrypt-prod
   hosts:
     - $$PROJECT_NAME$$-prod.my.hostname.com
   tls: 
