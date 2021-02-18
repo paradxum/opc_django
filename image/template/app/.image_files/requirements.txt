@@ -1,6 +1,6 @@
-Django>=1.8,<2.0
+Django>=3.5,<4.0
 psycopg2-binary
-gunicorn>=19.9,<20.0
+gunicorn
 django-redis-cache
 hiredis
 # Makes debugging much easier ... 

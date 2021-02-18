@@ -12,17 +12,37 @@
 #  always spend half a day getting projects set up
 # Take a look at the README for more info
 
-if [ "X$1" == "X" ] ; then
+show_usage(){
 	echo "Usage: $0 <project name> <appname>"
 	exit 1
+}
+
+if [ "X$1" == "X" ] ; then
+	show_usage()
 	fi
 if [ "X$2" == "X" ] ; then
-	echo "Usage: $0 <project name> <appname>"
-	exit 1
+	show_usage()
 	fi
 
 pname=$1
 appname=$2
+
+if [[ ! "$pname" =~ ^[a-z0-9\.\-]+$ ]]; then
+	echo "ERROR: Project name is not Kubernetes Valid."
+	echo " - contain no more than 253 characters. "
+	echo " - contain only lowercase alphanumeric characters, '-' or '. '"
+	echo " - start and end with an alphanumeric character."
+	echo " "
+	show_usage()
+fi
+if [[ ! "$appname" =~ ^[a-z0-9\.\-]+$ ]]; then
+	echo "ERROR: App name is not Kubernetes Valid."
+	echo " - contain no more than 253 characters. "
+	echo " - contain only lowercase alphanumeric characters, '-' or '. '"
+	echo " - start and end with an alphanumeric character."
+	echo " "
+	show_usage()
+fi
 
 export CREATE_HELM_CHART=1
 
@@ -32,12 +52,12 @@ export GITLAB_HOST="https://my_gitlab.host.com"
 export GITLAB_USER="my.gitlab.username"
 export GITLAB_API_TOKEN="gitlab_api_token"
 
-export DJANO_VER=2	# 1 or 2 for latest of that version, point release for specific ver
+export DJANO_VER=3	# 1 or 2 for latest of that version, point release for specific ver
 # Note: For the docker images below, we use the -alpine version automatically
-export PYTHON_VER=3.7		
-export POSTGRES_VER=10.7.0
-export NGINX_VER=1.15.0
-export REDIS_VER=4.0.14
+export PYTHON_VER=3.9
+export POSTGRES_VER=13.2.0
+export NGINX_VER=1.19.7
+export REDIS_VER=6.0.10
 
 
 #export BUILDER_IMAGE=opc_django:dev	# For local work on builder

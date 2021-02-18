@@ -9,7 +9,7 @@ RUN mkdir -p /usr/src/app
 WORKDIR /usr/src/app
 
 ADD .image_files/requirements.txt /usr/src/app/.image_files/requirements.txt
-RUN pip install -r .image_files/requirements.txt
+RUN pip3 install -r .image_files/requirements.txt
 
 RUN apk del build-deps 	&& rm -rf /var/cache/apk/*
 

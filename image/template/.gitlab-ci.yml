@@ -17,14 +17,15 @@ variables:
   DOCKER_DRIVER: overlay2
   COMPOSE_VER: 1.24.0
   COMPOSE_HTTP_TIMEOUT: 600
-  APP_IMAGE: $CI_REGISTRY_IMAGE/$CI_PROJECT_NAME-app
-  APP_TEST_IMAGE: $CI_REGISTRY_IMAGE/$CI_PROJECT_NAME-app:$CI_BUILD_REF_NAME-test
-  NGINX_IMAGE: $CI_REGISTRY_IMAGE/$CI_PROJECT_NAME-nginx
-  NGINX_TEST_IMAGE: $CI_REGISTRY_IMAGE/$CI_PROJECT_NAME-nginx:$CI_BUILD_REF_NAME-test
+  IMAGES: "app nginx"
+  HELM_IMAGE: alpine/helm:3.5.2
 
 
 before_script:
   - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+  - alias helm="docker run -v "$PWD/charts":/apps -v "$PWD/helm_config":/root/.config/helm -v "$PWD/helm_cache":/root/.cache/helm -v "$PWD/kube_config/config":/root/.kube/config $HELM_IMAGE"
+  - "export HELM_USER=$(echo $CI_HELM_AUTH|cut -d : -f 1)"
+  - "export HELM_PASS=$(echo $CI_HELM_AUTH|cut -d : -f 2)"
   - |
     cache_dockerhub_image() {
       image=$1
@@ -40,7 +41,39 @@ before_script:
       else echo "#### Cache Matches - No Update Needed ####"
       fi  
     }
-
+    get_test_image() {
+      IMAGE=`echo $1|tr '[:upper:]' '[:lower:]'`
+      echo "$CI_REGISTRY_IMAGE/$CI_PROJECT_NAME-$IMAGE:$CI_BUILD_REF_NAME-test"
+    }
+    get_base_image() {
+      IMAGE=`echo $1|tr '[:upper:]' '[:lower:]'`
+      echo "$CI_REGISTRY_IMAGE/$CI_PROJECT_NAME-$IMAGE"
+    }
+    build_test_image() {
+      IMAGE=$(get_test_image $1)
+      DIR=`echo $1|tr '[:upper:]' '[:lower:]'`
+      docker pull $IMAGE || true
+      docker build --cache-from $IMAGE -t $IMAGE $DIR/.
+      docker push $IMAGE
+    }
+    add_tag() {
+      CURRENT=$1
+      NEW=$2
+      docker pull $CURRENT
+      docker tag $CURRENT $NEW
+      docker push $NEW
+    }
+    setup_helm(){
+      cache_dockerhub_image $HELM_IMAGE
+      mkdir helm_config
+      mkdir kube_config
+      echo ${KUBECONFIG} | base64 -d > kube_config/config
+      chmod 0600 kube_config/config
+      helm repo add stable https://charts.helm.sh/stable
+      helm repo add bitnami https://charts.bitnami.com/bitnami
+      helm repo update
+      helm repo add --username $HELM_USER --password $HELM_PASS deployrepo $CI_HELM_REPO
+    }
 
 
 python_lint:
@@ -51,13 +84,15 @@ python_lint:
     - cache_dockerhub_image mvantellingen/python-lint
     - docker run --volume "$PWD":/code --volume /var/run/docker.sock:/var/run/docker.sock mvantellingen/python-lint flake8 app/
 
+
 helm_lint:
   stage: lint
   except:
     - tags
   script:
-          - cache_dockerhub_image alpine/helm:3.1.1
-    - docker run --volume "$PWD/charts":/apps alpine/helm lint $CI_PROJECT_NAME
+    - setup_helm
+    - helm lint $CI_PROJECT_NAME
+
 
 .codequality:
  stage: lint
@@ -72,23 +107,11 @@ helm_lint:
    paths: [codeclimate.json]
 
 
-
-build_app_test:
+build_test_images:
   stage: build
   script:
     - find . -type f -exec sed -i -i '/# !BUILD-STRIP/d' {} \;
-    - cat app/.image_files/requirements.txt
-    - docker pull $APP_TEST_IMAGE || true
-    - docker build --cache-from $APP_TEST_IMAGE -t $APP_TEST_IMAGE app/.
-    - docker push $APP_TEST_IMAGE
-
-build_nginx:
-  stage: build
-  script:
-    - docker pull $NGINX_TEST_IMAGE || true
-    - docker build --cache-from $NGINX_TEST_IMAGE -t $NGINX_TEST_IMAGE nginx/.
-    - docker push $NGINX_TEST_IMAGE
-
+    - for IMG in ${IMAGES}; do echo Building $IMG; build_test_image $IMG; done
 
 
 django_tests:
@@ -97,6 +120,7 @@ django_tests:
   except:
     - tags
   script:
+    - export APP_TEST_IMAGE=$(get_test_image APP)
     - cache_dockerhub_image bitnami/postgresql:$$POSTGRES_VER$$
     - cache_dockerhub_image bitnami/redis:$$REDIS_VER$$
     - docker pull $APP_TEST_IMAGE
@@ -104,17 +128,17 @@ django_tests:
     - docker-compose up -d redis
     - "sed -i 's#build: ./app#image: $APP_TEST_IMAGE#' docker-compose.yml"
     - "sed -i '/..app.:/d' docker-compose.yml"
-    - docker-compose run -u 0 ${CI_PROJECT_NAME}-app /bin/sh -c "pip install coverage && python3.7 manage.py makemigrations && coverage run --source='.' manage.py test $$APP_NAME$$ && coverage report"
+    - docker-compose run -u 0 ${CI_PROJECT_NAME}-app /bin/sh -c "pip install coverage && python3 manage.py makemigrations && coverage run --source='.' manage.py test testapp && coverage report"
   coverage: '/TOTAL.*?(\d{1,2}.\d+%)/'
+
 
 nginx_config_test:
   stage: test
   except:
     - tags
   script:
-    - docker pull $NGINX_TEST_IMAGE
-    - docker run -e APP_DNS_NAME=localhost $NGINX_TEST_IMAGE /bin/sh -c "nginx -t"
-
+    - docker pull $(get_test_image NGINX)
+    - docker run -e APP_DNS_NAME=localhost $(get_test_image NGINX) /bin/sh -c "nginx -t"
 
 
 bump_semver:
@@ -133,50 +157,31 @@ bump_semver:
 tag-build:
   stage: tag
   script:
-    - docker pull $APP_TEST_IMAGE
-    - docker tag $APP_TEST_IMAGE $APP_IMAGE:$CI_BUILD_REF_NAME
-    - docker push $APP_IMAGE:$CI_BUILD_REF_NAME
-    - docker pull $NGINX_TEST_IMAGE
-    - docker tag $NGINX_TEST_IMAGE $NGINX_IMAGE:$CI_BUILD_REF_NAME
-    - docker push $NGINX_IMAGE:$CI_BUILD_REF_NAME
+    - for IMG in ${IMAGES}; do echo Tagging $IMG to $CI_BUILD_REF_NAME; add_tag $(get_test_image $IMG) $(get_base_image $IMG):$CI_BUILD_REF_NAME; done
 
 tag-dev-latest:
   stage: tag
   only:
     - master
   script:
-    - docker pull $APP_TEST_IMAGE
-    - docker tag $APP_TEST_IMAGE $APP_IMAGE:dev-latest
-    - docker push $APP_IMAGE:dev-latest
-    - docker pull $NGINX_TEST_IMAGE
-    - docker tag $NGINX_TEST_IMAGE $NGINX_IMAGE:dev-latest
-    - docker push $NGINX_IMAGE:dev-latest
+    - for IMG in ${IMAGES}; do echo Tagging $IMG to dev-latest; add_tag $(get_test_image $IMG) $(get_base_image $IMG):dev-latest; done
 
 tag-prod-latest:
   stage: tag
   only:
     - prod
   script:
-    - docker pull $APP_TEST_IMAGE
-    - docker tag $APP_TEST_IMAGE $APP_IMAGE:latest
-    - docker push $APP_IMAGE:latest
-    - docker pull $NGINX_TEST_IMAGE
-    - docker tag $NGINX_TEST_IMAGE $NGINX_IMAGE:latest
-    - docker push $NGINX_IMAGE:latest
+    - for IMG in ${IMAGES}; do echo Tagging $IMG to latest; add_tag $(get_test_image $IMG) $(get_base_image $IMG):latest; done
 
 build_charts:
   stage: tag
   script:
-    - cache_dockerhub_image alpine/helm:3.1.1
+    - setup_helm
     - cd charts/$CI_PROJECT_NAME
     - sed -i "s/SetByCI/$CI_BUILD_REF_NAME/" values.yaml
     - sed -i "s#CI_REGISTRY#$CI_REGISTRY_IMAGE#" values.yaml
     - sed -i "s/SetByCI/$CI_BUILD_REF_NAME/" Chart.yaml
     - cd ..
-    - alias helm="docker run -v "$PWD":/apps -v "$PWD/helm_config":/root/.config/helm -v "$PWD/helm_cache":/root/.cache/helm alpine/helm:3.1.1"
-    - mkdir helm_config
-    - helm repo add stable https://kubernetes-charts.storage.googleapis.com
-    - helm repo update
     - helm dependency build $CI_PROJECT_NAME
     - helm package $CI_PROJECT_NAME
     - CHARTNAME=`ls $CI_PROJECT_NAME*.tgz`
@@ -192,23 +197,14 @@ deploy-master:
   only:
     - master
   script:
-    - cache_dockerhub_image alpine/helm:3.1.1
+    - setup_helm
     - cd charts/
     - sed -i "s/SetByCI/$CI_BUILD_REF_NAME/" $CI_PROJECT_NAME/Chart.yaml
     - export DEPLOYVERSION=$(grep "version:" $CI_PROJECT_NAME/Chart.yaml |cut -d " " -f 2)
     - export DEPLOYNAME=$CI_PROJECT_NAME-$CI_BUILD_REF_NAME
     - sed -i "s/CISetDate/`date +%F-%H.%M.%S`/" ${DEPLOYNAME}.yaml
-    - mkdir helm_config
-    - mkdir kube_config
-    - echo ${KUBECONFIG} | base64 -d > kube_config/config
-    - alias helm="docker run -v "$PWD":/apps -v "$PWD/helm_config":/root/.config/helm -v "$PWD/helm_cache":/root/.cache/helm -v "$PWD/kube_config/config":/root/.kube/config alpine/helm:3.1.1"
-    - helm repo add stable https://kubernetes-charts.storage.googleapis.com
-    - helm repo update
-    - "export HELM_USER=$(echo $CI_HELM_AUTH|cut -d : -f 1)"
-    - "export HELM_PASS=$(echo $CI_HELM_AUTH|cut -d : -f 2)"
-    - helm repo add --username $HELM_USER --password $HELM_PASS deployrepo $CI_HELM_REPO
     - export DEPLOYED=$(helm ls --all-namespaces|cut -d ' ' -f 1|grep $DEPLOYNAME|wc -l)
-    - export HELM_CMD_INSTALL="install $DEPLOYNAME deployrepo/$CI_PROJECT_NAME -f $DEPLOYNAME.yaml --version=$DEPLOYVERSION --namespace $DEPLOYNAME"
-    - export HELM_CMD_UPGRADE="upgrade $DEPLOYNAME deployrepo/$CI_PROJECT_NAME -f $DEPLOYNAME.yaml --version $DEPLOYVERSION --namespace $DEPLOYNAME"
-    - if [ ${DEPLOYED} -eq 0 ]; then echo helm $HELM_CMD_INSTALL; helm $HELM_CMD_INSTALL; else echo helm $HELM_CMD_UPGRADE; helm $HELM_CMD_UPGRADE; fi
+    - export HELM_ARGS="$DEPLOYNAME deployrepo/$CI_PROJECT_NAME -f $DEPLOYNAME.yaml --version=$DEPLOYVERSION --namespace $DEPLOYNAME"
+    - if [ ${DEPLOYED} -eq 0 ]; then helm install $HELM_ARGS; else helm upgrade $HELM_ARGS; fi
+
 
