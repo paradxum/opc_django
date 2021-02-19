@@ -27,21 +27,21 @@ if [ "X$2" == "X" ] ; then
 pname=$1
 appname=$2
 
-if [[ ! "$pname" =~ ^[a-z0-9\.\-]+$ ]]; then
+if [[ ! "$pname" =~ ^[a-z][a-z0-9\.\-]+[a-z]$ ]]; then
 	echo "ERROR: Project name is not Kubernetes Valid."
 	echo " - contain no more than 253 characters. "
 	echo " - contain only lowercase alphanumeric characters, '-' or '. '"
 	echo " - start and end with an alphanumeric character."
 	echo " "
-	show_usage()
+	show_usage
 fi
-if [[ ! "$appname" =~ ^[a-z0-9\.\-]+$ ]]; then
-	echo "ERROR: App name is not Kubernetes Valid."
+if [[ ! "$appname" =~ ^[a-z][a-z0-9\_]+[a-z]$ ]]; then
+	echo "ERROR: App name is not a valid Package Name."
 	echo " - contain no more than 253 characters. "
-	echo " - contain only lowercase alphanumeric characters, '-' or '. '"
+	echo " - contain only lowercase alphanumeric characters, '_'"
 	echo " - start and end with an alphanumeric character."
 	echo " "
-	show_usage()
+	show_usage
 fi
 
 export CREATE_HELM_CHART=1
