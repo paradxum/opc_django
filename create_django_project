@@ -18,25 +18,25 @@ show_usage(){
 }
 
 if [ "X$1" == "X" ] ; then
-	show_usage()
+	show_usage
 	fi
 if [ "X$2" == "X" ] ; then
-	show_usage()
+	show_usage
 	fi
 
 pname=$1
 appname=$2
 
-if [[ ! "$pname" =~ ^[a-z][a-z0-9\.\-]+[a-z]$ ]]; then
-	echo "ERROR: Project name is not Kubernetes Valid."
+if [[ ! "$pname" =~ ^[a-z][a-z0-9]+[a-z]$ ]]; then
+	echo "ERROR: Project name is not Kubernetes & Django Module Valid."
 	echo " - contain no more than 253 characters. "
-	echo " - contain only lowercase alphanumeric characters, '-' or '. '"
-	echo " - start and end with an alphanumeric character."
+	echo " - contain only lowercase alphanumeric characters"
+	echo " - start and end with an alpha character."
 	echo " "
 	show_usage
 fi
 if [[ ! "$appname" =~ ^[a-z][a-z0-9\_]+[a-z]$ ]]; then
-	echo "ERROR: App name is not a valid Package Name."
+	echo "ERROR: App name is not a valid Django Package Name."
 	echo " - contain no more than 253 characters. "
 	echo " - contain only lowercase alphanumeric characters, '_'"
 	echo " - start and end with an alphanumeric character."
@@ -61,7 +61,7 @@ export REDIS_VER=6.0.10
 
 
 #export BUILDER_IMAGE=opc_django:dev	# For local work on builder
-export BUILDER_IMAGE=ericschultz/opc_django:latest	# For local work on builder
+export BUILDER_IMAGE=ericschultz/opc_django:latest	# Pulic Image
 
 
 mkdir $pname
