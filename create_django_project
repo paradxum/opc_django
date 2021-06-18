@@ -67,6 +67,7 @@ export BUILDER_IMAGE=ericschultz/opc_django:latest	# Pulic Image
 mkdir $pname
 cwd=`pwd`
 echo "Creating"
+docker pull $BUILDER_IMAGE
 docker run --privileged \
 	-v "$cwd/$pname":"/dest/$pname" \
 	-v "`realpath ~`/.gitconfig":"/root/.gitconfig" \
