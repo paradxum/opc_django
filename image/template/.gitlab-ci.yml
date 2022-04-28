@@ -1,7 +1,8 @@
-image: docker:18.06
+image: ericschultz/docker-with-bash:20.10.7
 
 services:
-  - docker:18.06-dind
+  - name: docker:20.10.7-dind
+    alias: docker
 
 stages:
   - lint
@@ -14,6 +15,7 @@ stages:
 
 variables:
   DOCKER_HOST: tcp://localhost:2375/
+  DOCKER_TLS_CERTDIR: ""
   DOCKER_DRIVER: overlay2
   COMPOSE_VER: 1.24.0
   COMPOSE_HTTP_TIMEOUT: 600
@@ -23,9 +25,10 @@ variables:
 
 before_script:
   - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
-  - alias helm="docker run -v "$PWD/charts":/apps -v "$PWD/helm_config":/root/.config/helm -v "$PWD/helm_cache":/root/.cache/helm -v "$PWD/kube_config/config":/root/.kube/config $HELM_IMAGE"
   - "export HELM_USER=$(echo $CI_HELM_AUTH|cut -d : -f 1)"
   - "export HELM_PASS=$(echo $CI_HELM_AUTH|cut -d : -f 2)"
+  - if command -v shopt ; then shopt -s expand_aliases; fi
+  - alias helm="docker run -v "$PWD/charts":/apps -v "$PWD/helm_config":/root/.config/helm -v "$PWD/helm_cache":/root/.cache/helm -v "$PWD/kube_config/config":/root/.kube/config $HELM_IMAGE"
   - |
     cache_dockerhub_image() {
       image=$1
@@ -74,6 +77,28 @@ before_script:
       helm repo update
       helm repo add --username $HELM_USER --password $HELM_PASS deployrepo $CI_HELM_REPO
     }
+    get_image_size() {
+      docker manifest inspect $1 | docker run -i imega/jq -c '[.layers[].size] | add / 1024 / 1024 | floor'
+    }
+    check_image_sizes() {
+      logFile=$1
+      FAIL=0
+      for IMG in ${IMAGES};do
+        LIMIT=${sizeLimits[default]}
+        if [ ${sizeLimits[$IMG]+_} ]; then
+          LIMIT=${sizeLimits[$IMG]}
+        fi
+        II=$(get_test_image $IMG)
+        SIZE=$(get_image_size $II)
+        echo -e "$SIZE\t$IMG" >>$logFile
+        if [ $SIZE -gt $LIMIT ]; then
+          echo "$IMG $SIZE > $LIMIT"
+          FAIL=1
+      fi
+      done
+      exit $FAIL
+    }
+
 
 
 python_lint:
@@ -139,6 +164,19 @@ nginx_config_test:
   script:
     - docker pull $(get_test_image NGINX)
     - docker run -e APP_DNS_NAME=localhost $(get_test_image NGINX) /bin/sh -c "nginx -t"
+
+
+check_image_sizes:
+  stage: test
+  only:
+    - master
+  script:
+    - "declare -A sizeLimits=([default]=100)"
+    - check_image_sizes Image-Sizes.txt
+  artifacts:
+    paths:
+      - Image-Sizes.txt
+    expire_in: 1 year
 
 
 bump_semver:
