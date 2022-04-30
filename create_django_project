@@ -2,7 +2,7 @@
 
 #########################################################
 #   Opiniated Django Project creator script
-#	by Eric Schultz <eric.schultz@cyvon.com>
+#   by Eric Schultz <eric.schultz@cyvon.com>
 #########################################################
 # This script creates a Django project with a bunch of
 #  additional "stuff" to make it much easier to work on
@@ -13,35 +13,35 @@
 # Take a look at the README for more info
 
 show_usage(){
-	echo "Usage: $0 <project name> <appname>"
-	exit 1
+    echo "Usage: $0 <project name> <appname>"
+    exit 1
 }
 
 if [ "X$1" == "X" ] ; then
-	show_usage
-	fi
+    show_usage
+    fi
 if [ "X$2" == "X" ] ; then
-	show_usage
-	fi
+    show_usage
+    fi
 
 pname=$1
 appname=$2
 
 if [[ ! "$pname" =~ ^[a-z][a-z0-9]+[a-z]$ ]]; then
-	echo "ERROR: Project name is not Kubernetes & Django Module Valid."
-	echo " - contain no more than 253 characters. "
-	echo " - contain only lowercase alphanumeric characters"
-	echo " - start and end with an alpha character."
-	echo " "
-	show_usage
+    echo "ERROR: Project name is not Kubernetes & Django Module Valid."
+    echo " - contain no more than 253 characters. "
+    echo " - contain only lowercase alphanumeric characters"
+    echo " - start and end with an alpha character."
+    echo " "
+    show_usage
 fi
 if [[ ! "$appname" =~ ^[a-z][a-z0-9\_]+[a-z]$ ]]; then
-	echo "ERROR: App name is not a valid Django Package Name."
-	echo " - contain no more than 253 characters. "
-	echo " - contain only lowercase alphanumeric characters, '_'"
-	echo " - start and end with an alphanumeric character."
-	echo " "
-	show_usage
+    echo "ERROR: App name is not a valid Django Package Name."
+    echo " - contain no more than 253 characters. "
+    echo " - contain only lowercase alphanumeric characters, '_'"
+    echo " - start and end with an alphanumeric character."
+    echo " "
+    show_usage
 fi
 
 export CREATE_HELM_CHART=1
@@ -52,7 +52,7 @@ export GITLAB_HOST="https://my_gitlab.host.com"
 export GITLAB_USER="my.gitlab.username"
 export GITLAB_API_TOKEN="gitlab_api_token"
 
-export DJANO_VER=3	# 1 or 2 for latest of that version, point release for specific ver
+export DJANGO_VER=3 # 1 or 2 for latest of that version, point release for specific ver
 # Note: For the docker images below, we use the -alpine version automatically
 export PYTHON_VER=3.9
 export POSTGRES_VER=13.2.0
@@ -69,12 +69,12 @@ cwd=`pwd`
 echo "Creating"
 docker pull $BUILDER_IMAGE
 docker run --privileged \
-	-v "$cwd/$pname":"/dest/$pname" \
-	-v "`realpath ~`/.gitconfig":"/root/.gitconfig" \
-	-v "`realpath ~`/.git-credentials":"/root/.git-credentials" \
-	-e ID_UID=`id -u` -e ID_GID=`id -g` \
-	-e CREATE_HELM_CHART -e CREATE_GITLAB_PROJECT -e GITLAB_STORE_CREDS -e GITLAB_HOST -e GITLAB_USER -e GITLAB_API_TOKEN -e PYTHON_VER -e POSTGRES_VER -e NGINX_VER -e REDIS_VER \
-	$BUILDER_IMAGE $1 $2 >$pname.create.log 2>&1
+    -v "$cwd/$pname":"/dest/$pname" \
+    -v "`realpath ~`/.gitconfig":"/root/.gitconfig" \
+    -v "`realpath ~`/.git-credentials":"/root/.git-credentials" \
+    -e ID_UID=`id -u` -e ID_GID=`id -g` \
+    -e CREATE_HELM_CHART -e CREATE_GITLAB_PROJECT -e GITLAB_STORE_CREDS -e GITLAB_HOST -e GITLAB_USER -e GITLAB_API_TOKEN -e PYTHON_VER -e POSTGRES_VER -e NGINX_VER -e REDIS_VER \
+    $BUILDER_IMAGE $1 $2 >$pname.create.log 2>&1
 
 
 # All Done, Print a nice message
