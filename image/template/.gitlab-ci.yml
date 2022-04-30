@@ -3,6 +3,7 @@ image: ericschultz/docker-with-bash:20.10.7
 services:
   - name: docker:20.10.7-dind
     alias: docker
+    command: ["--tls=false"]
 
 stages:
   - lint
