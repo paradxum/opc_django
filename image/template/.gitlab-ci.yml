@@ -120,19 +120,6 @@ helm_lint:
     - helm lint $CI_PROJECT_NAME
 
 
-.codequality:
- stage: lint
- except:
-   - tags
- script:
-   - cache_dockerhub_image codeclimate/codeclimate
-   - cache_dockerhub_image codeclimate/codeclimate-structure:latest
-   - cache_dockerhub_image codeclimate/codeclimate-duplication:latest
-   - docker run --env CODECLIMATE_CODE="$PWD" --env CONTAINER_TIMEOUT_SECONDS=1800 -v "$PWD":/code -v /var/run/docker.sock:/var/run/docker.sock -v /tmp/cc:/tmp/cc codeclimate/codeclimate analyze -f json > codeclimate.json
- artifacts:
-   paths: [codeclimate.json]
-
-
 build_test_images:
   stage: build
   script:
