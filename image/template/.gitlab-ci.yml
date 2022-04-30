@@ -108,7 +108,7 @@ python_lint:
     - tags
   script:
     - cache_dockerhub_image mvantellingen/python-lint
-    - docker run --volume "$PWD":/code --volume /var/run/docker.sock:/var/run/docker.sock mvantellingen/python-lint flake8 app/
+    - docker run -v "$PWD":/code -v /var/run/docker.sock:/var/run/docker.sock mvantellingen/python-lint flake8 app/
 
 
 helm_lint:
@@ -141,8 +141,11 @@ django_tests:
     - docker-compose up -d redis
     - "sed -i 's#build: ./app#image: $APP_TEST_IMAGE#' docker-compose.yml"
     - "sed -i '/..app.:/d' docker-compose.yml"
-    - docker-compose run -u 0 ${CI_PROJECT_NAME}-app /bin/sh -c "pip install coverage && python3 manage.py makemigrations && coverage run --source='.' manage.py test && coverage report"
-  coverage: '/TOTAL.*?(\d{1,2}.\d+%)/'
+    - docker-compose run -v "$PWD":/report -u 0 ${CI_PROJECT_NAME}-app /bin/sh -c "pip install coverage && python3 manage.py makemigrations && coverage run --source='.' manage.py test && coverage report && coverage xml -o /report/coverage.xml"
+  coverage: '/TOTAL.*\s([.\d]+)%/'
+  artifacts:
+    reports:
+      cobertura: coverage.xml
 
 
 nginx_config_test:
