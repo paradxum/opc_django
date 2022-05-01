@@ -28,7 +28,7 @@ GITLAB_HOST=${GITLAB_HOST:-""}
 GITLAB_USER=${GITLAB_USER:-""}
 GITLAB_API_TOKEN=${GITLAB_API_TOKEN:-""}
 
-DJANGO_VER=${DJANGO_VER:-2}
+DJANGO_VER=${DJANGO_VER:-3}
 PYTHON_VER=${PYTHON_VER:-3.7}
 POSTGRES_VER=${POSTGRES_VER:-11.7.0}
 NGINX_VER=${NGINX_VER:-1.15.0}
@@ -68,6 +68,14 @@ if [ "X$DJANGO_VER" = "X1" ]; then
     echo ""
 elif [ "X$DJANGO_VER" = "X2" ]; then
     sed -i "s#^Django.*#Django>=2.2,<3.0#" app/.image_files/requirements.txt
+elif [ "X$DJANGO_VER" = "X3" ]; then
+    sed -i "s#^Django.*#Django>=3.2,<4.0#" app/.image_files/requirements.txt
+elif [ "X$DJANGO_VER" = "X4" ]; then
+    sed -i "s#^Django.*#Django>=4.0,<5.0#" app/.image_files/requirements.txt
+elif [ "X$DJANGO_VER" = "X5" ]; then
+    sed -i "s#^Django.*#Django>=5.0,<6.0#" app/.image_files/requirements.txt
+elif [ "X$DJANGO_VER" = "X6" ]; then
+    sed -i "s#^Django.*#Django>=6.0,<7.0#" app/.image_files/requirements.txt
 else
     sed -i "s#^Django.*#Django=$DJANGO_VER#" app/.image_files/requirements.txt
 fi
