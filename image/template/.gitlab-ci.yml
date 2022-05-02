@@ -22,7 +22,7 @@ variables:
   COMPOSE_HTTP_TIMEOUT: 600
   IMAGES: "app nginx"
   HELM_IMAGE: alpine/helm:3.5.2
-
+  REQUIRED_COVERAGE: 80
 
 before_script:
   - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
@@ -143,6 +143,9 @@ django_tests:
     - "sed -i '/..app.:/d' docker-compose.yml"
     - docker-compose run -v "$PWD":/report -u 0 ${CI_PROJECT_NAME}-app /bin/sh -c "pip install coverage && python3 manage.py makemigrations && coverage run --source='.' manage.py test && coverage report && coverage xml -o /report/coverage.xml"
     - "sed -i \"s#/usr/src/app#/builds/${CI_PROJECT_NAMESPACE}/${CI_PROJECT_NAME}/app#\" coverage.xml"
+    - apk --no-cache add bc
+    - export COVERAGE_PERCENT=$( echo "`grep coverage coverage.xml|grep line-rate|sed -r 's#.* line-rate="([0-9]+\.*[0-9]*)" .*?#\1#'`*100" |bc)
+    - if [ `echo "$COVERAGE_PERCENT > $REQUIRED_COVERAGE" |bc -l` -eq 0 ]; then echo "Coverage Percent too Low - $COVERAGE_PERCENT < $REQUIRED_COVERAGE"; exit 1; fi
   coverage: '/TOTAL.*\s([.\d]+)%/'
   artifacts:
     reports:
