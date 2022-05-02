@@ -110,6 +110,8 @@ sed -i "s/MIDDLEWARE = .*/MIDDLEWARE = [\n    'django.middleware.cache.UpdateCac
 sed -i "s/XFrameOptionsMiddleware.*/XFrameOptionsMiddleware',\n    'django.middleware.cache.FetchFromCacheMiddleware',/" settings.py
 
 cat >>settings.py <<__EXTRA_SETTINGS__
+import os
+
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 MEDIA_URL = '/mediafiles/'
