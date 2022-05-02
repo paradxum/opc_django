@@ -131,6 +131,9 @@ CACHES = {
         "KEY_PREFIX": "testp10_"
     }
 }
+
+# Preserve Autofield backwards compatibility
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
 __EXTRA_SETTINGS__
 
     # Url mappings for django toolbar
