@@ -94,6 +94,8 @@ convert static/icon.png static/favicon.ico
 
 # Replace/setup our settings file
 cd /dest/$pname/app/$pname
+    # Be sure to import os
+sed -i "1s;^;import os\n;" settings.py
     # Secret key
 sed -i "s/SECRET_KEY =.*/SECRET_KEY = os.getenv('SECRET_KEY', 'NOTaSecret')/" settings.py
     # DB Settings
@@ -110,8 +112,6 @@ sed -i "s/MIDDLEWARE = .*/MIDDLEWARE = [\n    'django.middleware.cache.UpdateCac
 sed -i "s/XFrameOptionsMiddleware.*/XFrameOptionsMiddleware',\n    'django.middleware.cache.FetchFromCacheMiddleware',/" settings.py
 
 cat >>settings.py <<__EXTRA_SETTINGS__
-import os
-
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 MEDIA_URL = '/mediafiles/'
