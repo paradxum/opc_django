@@ -1,5 +1,14 @@
 FROM python:$$PYTHON_VER$$-alpine
 ENV PYTHONUNBUFFERED 1
+ENV PIP_DEFAULT_TIMEOUT=100
+ENV PIP_INDEX_URL https://pypi.org/simple
+#ENV PIP_INDEX_URL https://mirrors.sustech.edu.cn/pypi/simple
+ENV ALPINE_MIRROR http://mirrors.gigenet.com/alpinelinux/
+
+# Update alpine mirror:
+RUN sed -i -r 's#^http.+/(.+/main)#'${ALPINE_MIRROR%/}'/\1#' /etc/apk/repositories \
+    && sed -i -r 's#^http.+/(.+/community)#'${ALPINE_MIRROR%/}'/\1#' /etc/apk/repositories \
+    && sed -i -r 's#^http.+/(.+/testing)#'${ALPINE_MIRROR%/}'/\1#' /etc/apk/repositories
 
 RUN mkdir -p /usr/src/app
 WORKDIR /usr/src/app

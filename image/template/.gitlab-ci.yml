@@ -1,9 +1,10 @@
-image: ericschultz/docker-with-bash:20.10.7
+#image: docker:20.10.17
+image: ericschultz/docker-with-bash:20.10.17
 
-services:
-  - name: docker:20.10.7-dind
-    alias: docker
-    command: ["--tls=false"]
+#services:
+#  - name: docker:20.10.7-dind
+#    alias: docker
+#    command: ["--tls=false"]
 
 stages:
   - lint
@@ -15,13 +16,13 @@ stages:
 
 
 variables:
-  DOCKER_HOST: tcp://localhost:2375/
+  DOCKER_HOST: tcp://docker:2375/
   DOCKER_TLS_CERTDIR: ""
   DOCKER_DRIVER: overlay2
   COMPOSE_VER: 1.24.0
   COMPOSE_HTTP_TIMEOUT: 600
   IMAGES: "app nginx"
-  HELM_IMAGE: alpine/helm:3.5.2
+  HELM_IMAGE: alpine/helm:3.8.2
   REQUIRED_COVERAGE: 80
 
 before_script:
@@ -29,7 +30,7 @@ before_script:
   - "export HELM_USER=$(echo $CI_HELM_AUTH|cut -d : -f 1)"
   - "export HELM_PASS=$(echo $CI_HELM_AUTH|cut -d : -f 2)"
   - if command -v shopt ; then shopt -s expand_aliases; fi
-  - alias helm="docker run -v "$PWD/charts":/apps -v "$PWD/helm_config":/root/.config/helm -v "$PWD/helm_cache":/root/.cache/helm -v "$PWD/kube_config/config":/root/.kube/config $HELM_IMAGE"
+  - alias helm="docker run --network host --rm -v "$PWD/charts":/apps -v "$PWD/helm_config":/root/.config/helm -v "$PWD/helm_cache":/root/.cache/helm -v "$PWD/kube_config/config":/root/.kube/config $HELM_IMAGE"
   - |
     cache_dockerhub_image() {
       image=$1
