@@ -44,14 +44,14 @@ spec:
             - name: SQL_ENGINE
               value: django.db.backends.postgresql
             - name: SQL_DATABASE
-              value: {{ .Values.postgresql.postgresqlDatabase }}
+              value: {{ .Values.postgresql.global.postgresql.auth.database }}
             - name: SQL_USER
-              value: {{ .Values.postgresql.postgresqlUsername }}
+              value: {{ .Values.postgresql.global.postgresql.auth.username }}
             - name: SQL_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ .Release.Name }}-postgresql
-                  key: postgresql-password
+                  key: password
             - name: SQL_HOST
               value: {{ .Release.Name }}-postgresql
             - name: SQL_PORT
@@ -69,13 +69,13 @@ spec:
             httpGet:
               path: /admin
               port: app-http
-            initialDelaySeconds: 30
+            initialDelaySeconds: 10
             periodSeconds: 15
           readinessProbe:
             httpGet:
               path: /admin
               port: app-http
-            initialDelaySeconds: 30
+            initialDelaySeconds: 10
             periodSeconds: 15
           resources:
             {{- toYaml .Values.app.resources | nindent 12 }}

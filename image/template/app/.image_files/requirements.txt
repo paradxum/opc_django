@@ -12,3 +12,4 @@ django-debug-toolbar    # !BUILD-STRIP
 # Used for testing
 coverage                # !BUILD-STRIP
 pylint                  # !BUILD-STRIP
+pycobertura             # !BUILD-STRIP

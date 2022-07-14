@@ -12,25 +12,35 @@ postgresql:
     repository: bitnami/postgresql
     tag: $$POSTGRES_VER$$
     pullPolicy: IfNotPresent
-  persistence:
-    enabled: true
+  global:
 #   storageClass: nfs-client
+    postgresql:
+      auth:
+        postgresPassword: SetMe!
+        username: django_user
+        password: SetMeToo!
+        database: django_db
   securityContext:
     enabled: true
     fsGroup: 70
     runAsUser: 70
-  postgresqlDatabase: django_db
-  postgresqlUsername: django_user
 
 redis:
   image:
     repository: bitnami/redis
     tag: $$REDIS_VER$$
     pullPolicy: IfNotPresent
-  cluster:
+  auth:
     enabled: false
-  usePassword: false
+    sentinel: false
+  architecture: replication
   master:
+    persistence:
+      enabled: false
+  replica:
+    persistence:
+      enabled: false
+  sentinel:
     persistence:
       enabled: false
 

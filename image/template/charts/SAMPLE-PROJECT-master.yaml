@@ -4,9 +4,13 @@ appImageTag: master
 postgresql:
   image:
     pullPolicy: Always
-  persistence:
+  global:
     storageClass: nfs-client
-  postgresqlPassword: SETAPASSWORD
+    postgresql:
+      auth:
+        postgresPassword: NotAVeryGoodPassword
+        password: StillNotAVeryGoodPassword
+
 
 nginx:
   image:
